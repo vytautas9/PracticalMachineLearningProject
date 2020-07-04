@@ -1,0 +1,100 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Vytautas Kraujalis"
+date: '2020-07-04'
+output: html_document
+---
+
+# Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set.
+
+# Preprocessing
+## Get the data
+```{r}
+trainUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+if(!file.exists("train.csv")){
+        download.file(trainUrl, destfile = "train.csv", method = "curl")
+}
+if(!file.exists("test.csv")){
+        download.file(testUrl, destfile = "test.csv", method = "curl")
+}
+train <- read.csv("train.csv")
+test <- read.csv("test.csv")
+```
+
+## Clean the raw data
+```{r}
+library(caret)
+sum(complete.cases(train))
+
+nzv <- nearZeroVar(train)
+train <- train[, -nzv]
+test <- test[, -nzv]
+
+test <- test[,colSums(is.na(train)) == 0]
+train <- train[,colSums(is.na(train)) == 0]
+
+
+head(train[, 1:10])
+train <- train[ , -c(1:6)]
+test <- test[ , -c(1:6)]
+```
+We remove columns, that have near zero variance, columns that have NA values and also first 6 columns, as they are not necessary to our training
+
+## Split the training set
+```{r}
+
+set.seed(500)
+index <- createDataPartition(train$classe, p = 0.7, list = F)
+val <- train[-index,]
+train <- train[index,]
+```
+We split the training set into training and validation set with 70% ratio
+
+# Modeling
+## Building a model
+```{r}
+control <- trainControl(method = "cv", 5)
+model <- train(classe ~ ., data=train, method = "rf", trControl = control, ntree = 250)
+```
+
+## Model validation
+```{r}
+prediction <- predict(model, val)
+confusionMatrix(val$classe, prediction)
+
+accuracy <- postResample(prediction, val$classe)
+accuracy
+
+outOfSampleError <- 1 - as.numeric(confusionMatrix(val$classe, prediction)$overall[1])
+outOfSampleError
+```
+The accurasy of the model on the validation set is 99.37% and the estimated out of sample error is 0.63%
+
+# Predicting on the test set
+```{r}
+# Remove problem_id clomun
+test <- test[, -53]
+predict(model, test)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
